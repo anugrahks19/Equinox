@@ -50,21 +50,35 @@ def create_submission():
             print("Adding PPT_CONTENT.md...")
             zf.write("PPT_CONTENT.md")
             
+        # Add Project PDF (Critical)
+        if os.path.exists("equinox.pdf"):
+            print("Adding equinox.pdf...")
+            zf.write("equinox.pdf")
+
         # Add the Predictions Zip
         if os.path.exists(pred_zip_name):
             print("Adding predictions.zip...")
             zf.write(pred_zip_name)
             
         # 4. Add Model Weights (Crucial for Reproducibility)
-        # We add best.pt and the OpenVINO folder
+        # Check root first, then runs directory
         weights_dir = r"runs/train/yolov8l_military_resumed/weights"
-        best_pt = os.path.join(weights_dir, "best.pt")
         openvino_dir = os.path.join(weights_dir, "best_int8_openvino_model")
         
-        if os.path.exists(best_pt):
-            print(f"Adding Model Weights: {best_pt} (87MB)...")
-            zf.write(best_pt, "best.pt") # Save as best.pt in root for easy access
+        # Gold Model
+        if os.path.exists("best.pt"):
+            print("Adding Gold Model (best.pt) from root...")
+            zf.write("best.pt")
+        elif os.path.exists(os.path.join(weights_dir, "best.pt")):
+             print(f"Adding Gold Model from {weights_dir}...")
+             zf.write(os.path.join(weights_dir, "best.pt"), "best.pt")
+             
+        # Nuclear Model
+        if os.path.exists("nuclear.pt"):
+            print("Adding Nuclear Model (nuclear.pt) from root...")
+            zf.write("nuclear.pt")
             
+        # OpenVINO Model
         if os.path.exists(openvino_dir):
             print(f"Adding OpenVINO Model: {openvino_dir}...")
             for root, dirs, files in os.walk(openvino_dir):

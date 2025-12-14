@@ -57,6 +57,7 @@ Here is a complete guide to the files included in this submission:
 *   `Dockerfile`: Configuration for deploying the system in a containerized cloud environment.
 *   `requirements.txt`: List of all Python dependencies.
 *   `military_dataset.yaml`: The data configuration map used for training.
+*   `equinox.pdf`: The detailed Project PDF report as requested by the submission guidelines.
 
 ### 📂 src/ (Source Code)
 *   `app.py`: The **Streamlit Web Interface**. This runs the "Mission Control" dashboard.
