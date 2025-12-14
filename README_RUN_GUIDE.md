@@ -32,11 +32,7 @@ streamlit run src/app.py
 4.  Click **"ENGAGE ANALYSIS"**.
 5.  **Result**: The system will scan the image, locate targets, and draw neon bounding boxes around them.
 
-5.  **Result**: The system will scan the image, locate targets, and draw neon bounding boxes around them.
-
-> **⚠️ IMPORTANT**: If the website says **"The app has gone to sleep"**, do not worry! This is normal for cloud deployments to save energy.
-> *   Click the button **"Yes, get this app back up"**.
-> *   Wait ~15 seconds, and it will be online.
+> **⚠️ NOTE FOR CLOUD DEPLOYMENT**: If you are running this on a cloud platform (like Streamlit Community Cloud) and see **"The app has gone to sleep"**, simply click **"Yes, get this app back up"**. This does not apply when running locally.
 
 ---
 
