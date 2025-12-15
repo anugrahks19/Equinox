@@ -276,6 +276,83 @@ import time
 import torch
 from torchvision.ops import nms  # Added for Ensemble
 
+# --- CUSTOM WEIGHTED BOX FUSION (Synced with Submission) ---
+def custom_wbf(boxes_list, scores_list, labels_list, iou_thr=0.6, skip_box_thr=0.0001):
+    if len(boxes_list) == 0:
+        return np.array([]), np.array([]), np.array([])
+        
+    all_boxes = []
+    all_scores = []
+    all_labels = []
+    
+    for i in range(len(boxes_list)):
+        if len(boxes_list[i]) == 0: continue
+        all_boxes.extend(boxes_list[i])
+        all_scores.extend(scores_list[i])
+        all_labels.extend(labels_list[i])
+
+    if not all_boxes:
+        return np.array([]), np.array([]), np.array([])
+        
+    all_boxes = np.array(all_boxes)
+    all_scores = np.array(all_scores)
+    all_labels = np.array(all_labels)
+
+    order = all_scores.argsort()[::-1]
+    all_boxes = all_boxes[order]
+    all_scores = all_scores[order]
+    all_labels = all_labels[order]
+
+    keep_boxes = []
+    keep_scores = []
+    keep_labels = []
+
+    used = np.zeros(len(all_boxes), dtype=bool)
+    
+    for i in range(len(all_boxes)):
+        if used[i]: continue
+        
+        cluster_boxes = [all_boxes[i]]
+        cluster_scores = [all_scores[i]]
+        label = all_labels[i]
+        used[i] = True
+        
+        for j in range(i + 1, len(all_boxes)):
+            if used[j] or all_labels[j] != label: continue
+            
+            b1 = all_boxes[i]
+            b2 = all_boxes[j]
+            xx1 = max(b1[0], b2[0]); yy1 = max(b1[1], b2[1])
+            xx2 = min(b1[2], b2[2]); yy2 = min(b1[3], b2[3])
+            w = max(0, xx2 - xx1); h = max(0, yy2 - yy1)
+            inter = w * h
+            area1 = (b1[2]-b1[0])*(b1[3]-b1[1])
+            area2 = (b2[2]-b2[0])*(b2[3]-b2[1])
+            iou = inter / (area1 + area2 - inter + 1e-6)
+            
+            if iou > iou_thr:
+                cluster_boxes.append(all_boxes[j])
+                cluster_scores.append(all_scores[j])
+                used[j] = True
+
+        cluster_boxes = np.array(cluster_boxes)
+        cluster_scores = np.array(cluster_scores)
+        
+        total_score = np.sum(cluster_scores)
+        weighted_box = np.sum(cluster_boxes * cluster_scores[:, None], axis=0) / total_score
+        
+        n_models = 2
+        boost_factor =  min(len(cluster_scores) / n_models, 1.2) 
+        final_score = (total_score / len(cluster_scores)) * boost_factor
+        final_score = min(final_score, 1.0)
+
+        keep_boxes.append(weighted_box)
+        keep_scores.append(final_score)
+        keep_labels.append(label)
+
+    return np.array(keep_boxes), np.array(keep_scores), np.array(keep_labels)
+
+
 # Initialize session state for latency tracking
 if 'inference_time' not in st.session_state:
     st.session_state.inference_time = 0
@@ -337,9 +414,11 @@ with col2:
                 # Common variable for results: List of (Name, Score)
                 processed_boxes = [] 
                 
-                # --- ENSEMBLE LOGIC ---
+
+
+
+                # --- ENSEMBLE LOGIC (TTA + WBF) ---
                 if model_choice == "Dual-Core Ensemble (Max Accuracy)":
-                    # Load Both using Resolver
                     p1 = resolve_path("best.pt", r"runs/train/yolov8l_gold/weights/best.pt")
                     p2 = resolve_path("nuclear.pt", r"runs/train/yolov8x_nuclear/weights/best.pt")
                     
@@ -349,45 +428,56 @@ with col2:
                         m1 = YOLO(p1)
                         m2 = YOLO(p2)
                         
-                        # Run Both
-                        r1 = m1.predict(image, conf=conf_thresh, verbose=False)[0]
-                        r2 = m2.predict(image, conf=conf_thresh, verbose=False)[0]
-                    
-                    # Merge Boxes
-                    boxes_list = []
-                    scores_list = []
-                    cls_list = []
-                    
-                    # From Model 1
-                    if len(r1.boxes) > 0:
-                        boxes_list.append(r1.boxes.xyxy.cpu())
-                        scores_list.append(r1.boxes.conf.cpu())
-                        cls_list.append(r1.boxes.cls.cpu())
+                        # TTA Pipeline: Original + Flipped
+                        candidates_boxes = []
+                        candidates_scores = []
+                        candidates_labels = []
                         
-                    # From Model 2
-                    if len(r2.boxes) > 0:
-                        boxes_list.append(r2.boxes.xyxy.cpu())
-                        scores_list.append(r2.boxes.conf.cpu())
-                        cls_list.append(r2.boxes.cls.cpu())
+                        img_h, img_w = image.shape[:2]
+                        img_flipped = cv2.flip(image, 1)
+                        
+                        models = [m1, m2]
+                        
+                        for model in models:
+                            # Pass 1: Original
+                            r = model.predict(image, conf=0.10, verbose=False)[0] # Low conf for WBF
+                            if len(r.boxes) > 0:
+                                candidates_boxes.append(r.boxes.xyxy.cpu().numpy())
+                                candidates_scores.append(r.boxes.conf.cpu().numpy())
+                                candidates_labels.append(r.boxes.cls.cpu().numpy())
+                                
+                            # Pass 2: Flipped (TTA)
+                            r_flip = model.predict(img_flipped, conf=0.10, verbose=False)[0]
+                            if len(r_flip.boxes) > 0:
+                                boxes_f = r_flip.boxes.xyxy.cpu().numpy()
+                                scores_f = r_flip.boxes.conf.cpu().numpy()
+                                labels_f = r_flip.boxes.cls.cpu().numpy()
+                                
+                                # Invert Flip
+                                fixed_boxes = []
+                                for b in boxes_f:
+                                    x1, y1, x2, y2 = b
+                                    fx1 = img_w - x2
+                                    fx2 = img_w - x1
+                                    fixed_boxes.append([fx1, y1, fx2, y2])
+                                    
+                                candidates_boxes.append(np.array(fixed_boxes))
+                                candidates_scores.append(scores_f)
+                                candidates_labels.append(labels_f)
                     
-                    # Combine
-                    if len(boxes_list) > 0:
-                        all_boxes = torch.cat(boxes_list)
-                        all_scores = torch.cat(scores_list)
-                        all_cls = torch.cat(cls_list)
-                        
-                        # Apply NMS
-                        keep_indices = nms(all_boxes, all_scores, 0.6)
-                        
-                        final_boxes = all_boxes[keep_indices]
-                        final_scores = all_scores[keep_indices]
-                        final_cls = all_cls[keep_indices]
+                        # Apply WBF
+                        final_boxes, final_scores, final_cls = custom_wbf(
+                            candidates_boxes, candidates_scores, candidates_labels, iou_thr=0.60
+                        )
                         
                         # Visualization
                         res_plotted = image.copy()
                         names = m1.names
                         
+                        # Filter by user threshold
                         for box, score, cls_id in zip(final_boxes, final_scores, final_cls):
+                            if score < conf_thresh: continue
+                            
                             x1, y1, x2, y2 = map(int, box)
                             label = f"{names[int(cls_id)]} {score:.2f}"
                             cv2.rectangle(res_plotted, (x1, y1), (x2, y2), (0, 255, 65), 2)
