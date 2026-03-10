@@ -98,4 +98,4 @@ To generate raw prediction files for a dataset:
 ---
 
 **Equinox Defense Systems © 2025**
-*Serve Smart Hackathon Submission*
+*India Innovates 2026 Submission*

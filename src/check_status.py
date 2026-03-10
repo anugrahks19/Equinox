@@ -7,7 +7,7 @@ import glob
 
 def check_status():
     print("\n=============================================")
-    print("      SERVE SMART MODEL STATUS REPORT        ")
+    print("      INDIA INNOVATES 2026 MODEL STATUS REPORT        ")
     print("=============================================\n")
 
     # 1. IDENTIFY BEST MODEL

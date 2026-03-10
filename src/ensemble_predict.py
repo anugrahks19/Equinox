@@ -105,7 +105,7 @@ def custom_wbf(boxes_list, scores_list, labels_list, iou_thr=0.6, skip_box_thr=0
         # avg_score = total_score / len(cluster_scores)     # Conservative
         # max_score = np.max(cluster_scores)                # Aggressive
         
-        # Hackathon Strategy: Boost confidence if multiple models agree
+        # India Innovates 2026 Strategy: Boost confidence if multiple models agree
         n_models = 2  # Gold + Nuclear
         boost_factor =  min(len(cluster_scores) / n_models, 1.2) 
         final_score = (total_score / len(cluster_scores)) * boost_factor

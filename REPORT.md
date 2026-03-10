@@ -1,12 +1,12 @@
 # Military Object Detection System: Technical Report
-**Team Name:** Serve Smart Engineers
+**Team Name:** India Innovates 2026 Engineers
 **Date:** December 14, 2025
 
 ---
 
 
 ## 1. Executive Summary
-This report details the development of **Equinox**, a high-precision Object Detection system designed for the "Serve Smart" Military Dataset. The challenge involved detecting 12 classes of military assets in diverse environments, characterized by extreme class imbalance (e.g., 7,822 Tanks vs. 2 Trenches).
+This report details the development of **Equinox**, a high-precision Object Detection system designed for the "India Innovates 2026" Military Dataset. The challenge involved detecting 12 classes of military assets in diverse environments, characterized by extreme class imbalance (e.g., 7,822 Tanks vs. 2 Trenches).
 
 Our solution employs a **"Dual-Core Ensemble" architecture** enhanced with **Test-Time Augmentation (TTA)**:
 1.  **Data Engineering**: A custom Synthetic Copy-Paste pipeline to upsample rare classes.
