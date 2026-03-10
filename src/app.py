@@ -1,28 +1,3 @@
-import os
-import sys
-import subprocess
-
-def enforce_headless_cv2():
-    try:
-        # Check all site-packages directories for the standard opencv-python package
-        site_packages = [p for p in sys.path if 'site-packages' in p]
-        for site in site_packages:
-            if not os.path.isdir(site): continue
-            for d in os.listdir(site):
-                # The standard package is named 'opencv_python-...dist-info'
-                # The headless package is named 'opencv_python_headless-...dist-info'
-                if d.startswith("opencv_python-") and d.endswith(".dist-info"):
-                    print("Standard opencv-python detected! Replacing with headless explicitly...")
-                    subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "opencv-python"])
-                    # Ensure headless is installed in its place
-                    subprocess.call([sys.executable, "-m", "pip", "install", "opencv-python-headless"])
-                    return
-    except Exception as e:
-        print(f"Failed to enforce headless cv2: {e}")
-
-# Call this BEFORE any CV2 or Ultralytics imports 
-enforce_headless_cv2()
-
 import streamlit as st
 from ultralytics import YOLO
 import cv2
