@@ -1,17 +1,3 @@
-import os
-import sys
-import subprocess
-
-# Streamlit Cloud OpenCV Conflict Fix
-try:
-    import cv2
-except ImportError:
-    print("Detected OpenCV ImportError. Fixing headless installation...")
-    subprocess.run(["pip", "uninstall", "-y", "opencv-python", "opencv-python-headless"])
-    subprocess.run(["pip", "install", "opencv-python-headless"])
-    if "cv2" in sys.modules:
-        del sys.modules["cv2"]
-
 import streamlit as st
 from ultralytics import YOLO
 import cv2
